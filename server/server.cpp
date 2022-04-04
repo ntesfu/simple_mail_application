@@ -95,9 +95,7 @@ unsigned long TcpThread::ResolveName(char name[])
 	return *((unsigned long *) host->h_addr_list[0]);
 }
 
-/*
-msg_recv returns the length of bytes in the msg_ptr->buffer,which have been recevied successfully.
-*/
+/*msg_recv returns the length of bytes in the msg_ptr->buffer,which have been recevied successfully.*/
 int TcpThread::msg_recv(int sock,Email * msg_ptr, char **body)
 {
 	int rbytes,n;
@@ -110,22 +108,17 @@ int TcpThread::msg_recv(int sock,Email * msg_ptr, char **body)
 		if((n=recv(sock,(char *)msg_ptr->buffer+rbytes,msg_ptr->length-rbytes,0))<=0)
 			err_sys("Recevier Buffer Error");
 
-	//printf("%d:receiving body\n:%s",msg_ptr->type,msg_ptr->buffer);
 	if (msg_ptr->type == EMAIL){
-		//printf("receiving body\n");
 		Esendp = (Esend *)msg_ptr->buffer;
 		*body = (char *)malloc(sizeof(char) * Esendp->body_length + 1);
-		//printf("%d:%s\n", Esendp->body_length, body);
 		for(rbytes=0 ; rbytes<Esendp->body_length;rbytes+=n)
 			if((n=recv(sock, (char *)*body + rbytes, Esendp->body_length-rbytes, 0)) <= 0)
 				err_sys("Recevier Buffer Error");
-		//printf("%d:%s:%d\n", Esendp->body_length, *body,n);
 	}
 	return msg_ptr->length;
 }
 
-/* msg_send returns the length of bytes in msg_ptr->buffer,which have been sent out successfully
-*/
+/* msg_send returns the length of bytes in msg_ptr->buffer,which have been sent out successfully*/
 int TcpThread::msg_send(int sock, Email* msg_ptr, char *body)
 {
 	int n;
@@ -136,12 +129,14 @@ int TcpThread::msg_send(int sock, Email* msg_ptr, char *body)
 	if (msg_ptr->type == EMAIL)
 	{
 		Esend *send_ptr = (Esend *)msg_ptr->buffer;
-		//printf("body:%d;bdyptr:%d\n",sizeof(body),send_ptr->body_length);
-		if ((n = send(sock, (char*)body, send_ptr->body_length, 0)) != (send_ptr->body_length))
-			err_sys("Send MSGHDRSIZE+length Error");
-		ret += n;
+		int offset;
+		for(offset = 0; offset < send_ptr->body_length; offset += n){
+			if ((n = send(sock, body + offset, send_ptr->body_length - offset, 0)) != (send_ptr->body_length))
+				err_sys("Send MSGHDRSIZE+length Error");
+			offset += n;
+			ret += n;
+		}
 	}
-	//printf("send size:%d\n", ret - MSGHDRSIZE);
 	return (ret - MSGHDRSIZE);
 }
 
@@ -156,7 +151,6 @@ void TcpThread::run() //cs: Server socket
 	respp=(Resp *)smsg.buffer;
 	if(msg_recv(cs,&rmsg, &body)!=rmsg.length)
 		err_sys("Receive Req error,exit");
-	//printf("Email: %d:%d:%s\n", rmsg.type,rmsg.length,rmsg.buffer);
 	if (rmsg.type == SGN_UP || rmsg.type == SGN_IN || rmsg.type == SGNIN_RECV){
 		if ((res = authenticateClient(&rmsg)) != 0){
 			curr_time = time(NULL);
@@ -166,7 +160,7 @@ void TcpThread::run() //cs: Server socket
 			if(msg_send(cs,&smsg, NULL)!=smsg.length)
 				err_sys("send Response failed,exit");
 			closesocket(cs);
-			printf("\nwaiting to be contacted for transferring Mail...1\n\n");
+			printf("\nwaiting to be contacted for transferring Mail...\n\n");
 			return;
 		}		
 	}
@@ -179,49 +173,39 @@ void TcpThread::run() //cs: Server socket
 	if(msg_send(cs,&smsg,NULL)!=smsg.length)
 			err_sys("send Response failed,exit");
 
-	//printf("%d\n", rmsg.type);
 	if (rmsg.type == SGN_IN){
-		printf("sign in!\n");
 		if(msg_recv(cs, &rmsg, &body)!=rmsg.length)
 			err_sys("Receive Req error,exit");
 	}
 	else if (rmsg.type == SGN_UP){
-		printf("sign up!\n");
 		closesocket(cs);
-		printf("\nwaiting to be contacted for transferring Mail...2\n\n");
+		printf("\nwaiting to be contacted for transferring Mail...\n\n");
 	}
 	else if (rmsg.type == SGNIN_RECV){
-		//signp->hostname
-		printf("Signin to receive\n");
 		char *entry = new char[FROM_LENGTH + 10];
 		sprintf(entry, "%s %d\n", signp->clientname, cs);
 		appendToFile("clientMap.txt", entry);
-		printf("\nwaiting to be contacted for transferring Mail...4\n\n");
+		printf("\nwaiting to be contacted for transferring Mail...\n\n");
 		// checking if the client is disconnecting
 		int r = recv(cs, NULL, 0, 0);
 		if(r == SOCKET_ERROR && WSAGetLastError() == WSAECONNRESET){
-			printf("Clinet %s has disconnected!\n\n", signp->clientname);
+			printf("Client %s has disconnected!\n\n", signp->clientname);
 			eraseClientFromMapping("clientMap.txt", signp->clientname);
 		}
 		return;
 	}
-	//printf("time to step up\n");
-	if (rmsg.type == EMAIL){
+	if (rmsg.type == EMAIL){		
 		//cast it to the request packet structure
-		//Esendp=(Esend *)rmsg.buffer;
-		printf("Email receive\n");
-
 		headerp=(Header *)Esendp->header;
 		smsg.length=sizeof(Esend);
 
 		printf("Receive a request from client: %s\n",Esendp->hostname);
-		//printf("%s\n", headerp->to);
 		if (checkClientEntry(headerp->to, NULL, 2) != 0){
 			printf("Invalid Email Receipent!\n");
 			strcpy(respp->rcode, "501");
 			if(msg_send(cs,&smsg,NULL)!=smsg.length)
 				err_sys("send Response failed,exit");
-			printf("\nwaiting to be contacted for transferring Mail...2\n\n");
+			printf("\nwaiting to be contacted for transferring Mail...\n\n");
 			return;
 		}
 		int sock;
@@ -230,37 +214,33 @@ void TcpThread::run() //cs: Server socket
 			strcpy(respp->rcode, "550");
 			if(msg_send(cs,&smsg,NULL)!=smsg.length)
 				err_sys("send Response failed,exit");
-			printf("\nwaiting to be contacted for transferring Mail...2\n\n");
+			printf("\nwaiting to be contacted for transferring Mail...\n\n");
 			return;
 		}
+		printf("Receiving client is connected\n");
 		
 		//sending data to connected client
+		printf("Sending Email to receiver client\n");
 		int body_len = ((Esend *)rmsg.buffer)->body_length;
 		if(msg_send(sock,&rmsg,body)!=rmsg.length + body_len)
 			err_sys("send Respose failed,exit");
 
 		//get optional file if exists
-		//printf("file size:%ld\n", Esendp->file_size);
 		int x;
 		if (Esendp->file_size != -1){
 			if ((x = receiveFileAttachment(cs, &rmsg, &modFileName, frecv)) != Esendp->file_size)
 				err_sys("Error, could not receive the file attachment");
 			if ((x = sendFileAttachment(sock, &rmsg, modFileName, frecv)) != Esendp->file_size)
 				err_sys("Error, could not send the file attachment");
+			remove(modFileName);
 		}
 	
 		if(msg_send(cs,&smsg,NULL)!=smsg.length)
 			err_sys("send Respose failed,exit");
-		printf("Mail Received from %s\n", Esendp->hostname);
-		printf("From: %s\n", headerp->from);
-		printf("To: %s\n", headerp->to);
-		printf("Subject: %s\n", headerp->subject);
-		printf("Time: %s\n", headerp->tstamp);
-		printf("%s\n", body);
 		if (body)
 			free(body);
 		closesocket(cs);
-		printf("\nwaiting to be contacted for transferring Mail...3\n\n");
+		printf("\nwaiting to be contacted for transferring Mail...\n\n");
 	}	
 }
 
@@ -342,7 +322,8 @@ int TcpThread::checkClientEntry(char *user, char *passwd, int full){
 	fclient.open("clients.txt", ios::in);
 	if (fclient.is_open())
 	{
-		while (getline(fclient,line))
+		getline(fclient,line);
+		while (!fclient.eof())
 		{
             n_ind = IndexOf(line, ' ');
 			client = ft_substr(line, 0, n_ind);
@@ -353,13 +334,12 @@ int TcpThread::checkClientEntry(char *user, char *passwd, int full){
 			else if ((full == 0 || full == 2) && strcmp(client,user) == 0){
 				res = 0;
                 break;}
-			free(client);
-    		free(clientpass);
+			if (client) free(client);
+			if (clientpass) free(clientpass);
+			getline(fclient,line);
+			if (line.length() == 0)
+				break;
 		}
-		if (client)
-			free(client);
-    	if (clientpass)
-			free(clientpass);
 		fclient.close();
 	}
 	return res;
@@ -430,6 +410,7 @@ int TcpThread::eraseClientFromMapping(const char *fname, char *user)
 	return res;
 }
 
+/*receive file attachment from sender*/
 long	TcpThread::receiveFileAttachment(int cs, Email *rmsg, char **fname, FILE *frecv)
 {
 	int		n;
@@ -438,27 +419,21 @@ long	TcpThread::receiveFileAttachment(int cs, Email *rmsg, char **fname, FILE *f
 	char	*buf;
 	long	offset;
 
-	printf("Receiving file\n\n");
-	//printf(":%d\n", Esendp->filename_size);
+	printf("Receiving file attachment\n");
 	*fname = new char[Esendp->filename_size + 1];
-	//for (offset = 0; offset < Esendp->filename_size; offset += n)
 	if ((n = recv(cs, *fname, Esendp->filename_size, 0)) <= 0)
 			err_sys("File name receive error");
 	(*fname)[Esendp->filename_size] = '\0';
-	//printf("file to recv:%s\n", *fname);
-	//printf("fname size read:%d:%s\n", n, *fname);
 	if ((frecv = fopen(*fname, "w")) == NULL){
 		printf("Could not open a file to write\n");
 		return (-1);
 	}
-	//Esendp = (Esend *)rmsg->buffer;
 	buf = (char *)malloc(sizeof(char) * MTU_SIZE + 1);
 	if (!buf) return (-1);
 	for(offset = 0; offset < Esendp->file_size; offset += n)
 	{
 		if ((n = recv(cs, buf, MTU_SIZE, 0)) <= 0)
 			err_sys("Reading file error");
-		//printf("%s",buf);
 		fwrite(buf, sizeof(char), n, frecv);
 		fflush(frecv);
 	}
@@ -467,6 +442,7 @@ long	TcpThread::receiveFileAttachment(int cs, Email *rmsg, char **fname, FILE *f
 	return (offset);
 }
 
+/*sending file attachment to receiver process*/
 long	TcpThread::sendFileAttachment(int cs, Email *rmsg, char *fname, FILE *frecv)
 {
 	printf("Sending file attachment\n\n");
@@ -477,35 +453,26 @@ long	TcpThread::sendFileAttachment(int cs, Email *rmsg, char *fname, FILE *frecv
 	int		offset;
 
 	ret = 0;
-	//printf("file name to send:%s\n", fname);
 	if ((frecv = fopen(fname, "r")) == NULL){
 		printf("Could not open a file to write\n");
 		return (-1);
 	}
-	//printf("fname length:%d\n", strlen(modFileName));
 	if ((n = send(cs, (char*)fname, Esendp->filename_size, 0)) != Esendp->filename_size)
 		err_sys("Send File Name error");
-	//printf("%d",n);
 	buf = (char *)malloc(sizeof(char) * MTU_SIZE + 1);
 	if (!buf) return (-1);
 	while ((size = fread(buf, sizeof(char), MTU_SIZE, frecv)) > 0){
 		ret += size;	
 		offset = 0;
-		//printf("%s",buf);
 		while ((n = send(cs, buf + offset, size, 0)) > 0){
 			offset += n; 
 			size -= n;
 		}
-		//fwrite(buf, 1, MTU_SIZE, fout);
 	}
 	if (buf) free(buf);
-	//printf("file size sent:%ld:%ld\n", ret, Esendp->file_size);
 	fclose(frecv);
 	return (ret);
 }
-
-
-////////////////////////////////////////////////////////////////////////////////////////
 
 int main(void)
 {

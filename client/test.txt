@@ -2,4 +2,23 @@ The character b has no effect, but is allowed for ISO C standard conformance. Op
 Opening a file with append mode (a as the first character in the mode argument) causes all subsequent writes to the file to be forced to the then current end-of-file, regardless of intervening calls to fseek().
 When a file is opened with update mode (+ as the second or third character in the mode argument), both input and output may be performed on the associated stream. However, output must not be directly followed 
 by input without an intervening call to fflush() or to a file positioning function (.Fn fseek , fsetpos() or rewind()), and input must not be directly followed by output without an intervening call to a file 
-positioning function, unless the input operation encounters end-of-file.
+positioning function, unless the input operation encounters end-of-file.First off, you want to read the data without the 8 byte prefix, and you allocate the right amount of space (not really, see further). But at that point, size still holds the total amount of bytes of the file, including the 8 byte prefix. Since you ask to read size bytes and there are only size-8 bytes remaining, the file.read operation fails. You don't check for errors and so you do not notice file is invalidated at that point. With an error check you should have seen this:
+
+if (file)
+  std::cout << "all characters read successfully.";
+else
+  std::cout << "error: only " << file.gcount() << " could be read";
+Because file is invalid from that point on, all operations such as your later file.tellg() return -1.
+
+The second error is data[size] = '\0'. Your buffer is not that large; it should be data[size-8] = 0;. Currently, you are writing into memory beyond what you allocated earlier, which causes Undefined Behavior and may lead to problems later on.
+
+But that last operation clearly shows you are thinking in terms of character strings. A PNG file is not a string, it is a binary stream of data. Allocating +1 for its size and setting this value to 0 (with the unnecessary "character-wise" way of thinking, with '\0') is only useful if the input file is of a string type – say, a plain text file.
+
+A simple fix for your current issues is this (well, and add error checking for all your file operations):
+
+file.read( data, size-8 );
+However, I would strongly advise you to look at a much simpler file format first. The PNG file format is compact and well documented; but it is also versatile, complicated, and contains highly compressed data. For a beginner it is way too hard.
+
+Start with an easier image format. ppm is a deliberately simple format, good to start with. tga, old but easy, introduces you to several more concepts such as bit depths and color mapping. Microsoft's bmp has some nice little caveats but can still be considered 'beginner friendly'. If you are interested in simple compression, the basic Run Length Encoding of a pcx is a good starting point. After mastering that you could look in to the gif format, which uses the much harder LZW compression.
+
+Only if you succeed in implementing parsers for these, you may want to look at PNG again.
