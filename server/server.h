@@ -18,6 +18,7 @@
 #include <string>
 #include <process.h>
 #include "Thread.h"
+#include <direct.h>
 
 #define HOSTNAME_LENGTH 20
 #define PASS_LENGTH 20
@@ -34,6 +35,7 @@
 #define MTU_SIZE 1459
 #define MAXPENDING 10
 #define MSGHDRSIZE 8 //Message Header Size
+#define	FSIZE (FROM_LENGTH + SUBJ_LENGTH + TSTAMP_LENGTH + 12)
 
 using namespace std;
 typedef enum
@@ -115,6 +117,9 @@ public:
 	int		authenticateClient(Email *rmsg);
 	int		checkClientEntry(char *user, char *passwd, int full);
 	int		checkClientMapping(char *user);
+	int		makeDir(Email *rmsg);
+	int		copyFile(char *srcFname, char *destFname);
+	int		saveEmailToFile(int cs, Email *rmsg, char *body, char **fname, FILE *frecv);
 	long	receiveFileAttachment(int cs, Email *rmsg, char **fname, FILE *frecv);
 	long	sendFileAttachment(int cs, Email *rmsg, char *fname, FILE *frecv);
 	int		appendToFile(const char *fname, char *entry);

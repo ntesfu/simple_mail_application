@@ -144,7 +144,7 @@ void TcpThread::run() //cs: Server socket
 {
     int		res;
 	char	*body;
-	char	*modFileName;
+	char	*modsentFile;
 	FILE	*frecv;
 	
 	smsg.type=RESP;	
@@ -178,7 +178,7 @@ void TcpThread::run() //cs: Server socket
 			err_sys("Receive Req error,exit");
 	}
 	else if (rmsg.type == SGN_UP){
-		closesocket(cs);
+		closesocket(cs);	//client is appended to client list when authenticating
 		printf("\nwaiting to be contacted for transferring Mail...\n\n");
 	}
 	else if (rmsg.type == SGNIN_RECV){
@@ -208,6 +208,11 @@ void TcpThread::run() //cs: Server socket
 			printf("\nwaiting to be contacted for transferring Mail...\n\n");
 			return;
 		}
+
+		// save email to inbox of receiver and sent of sender
+		if (saveEmailToFile(cs, &rmsg, body, &modsentFile, frecv) != 0)
+			err_sys("Saving Email to file failed, exit");
+
 		int sock;
 		if ((sock = checkClientMapping(headerp->to)) <= 0){
 			printf("Client is not connected to receive!\n");
@@ -225,18 +230,17 @@ void TcpThread::run() //cs: Server socket
 		if(msg_send(sock,&rmsg,body)!=rmsg.length + body_len)
 			err_sys("send Respose failed,exit");
 
-		//get optional file if exists
-		int x;
+		//send optional file if exists
 		if (Esendp->file_size != -1){
-			if ((x = receiveFileAttachment(cs, &rmsg, &modFileName, frecv)) != Esendp->file_size)
-				err_sys("Error, could not receive the file attachment");
-			if ((x = sendFileAttachment(sock, &rmsg, modFileName, frecv)) != Esendp->file_size)
+			// if ((x = receiveFileAttachment(cs, &rmsg, &modsentFile, frecv)) != Esendp->file_size)
+			// 	err_sys("Error, could not receive the file attachment");
+			if ((sendFileAttachment(sock, &rmsg, modsentFile, frecv)) != Esendp->file_size)
 				err_sys("Error, could not send the file attachment");
-			remove(modFileName);
+			//remove(modsentFile);
 		}
 	
 		if(msg_send(cs,&smsg,NULL)!=smsg.length)
-			err_sys("send Respose failed,exit");
+			err_sys("send Response failed,exit");
 		if (body)
 			free(body);
 		closesocket(cs);
@@ -263,7 +267,10 @@ int TcpThread::authenticateClient(Email *rmsg)
 		}
 		char *entry = new char[sizeof(signp->clientname) + sizeof(signp->clientname) + 1];
 		sprintf(entry, "%s %s\n", signp->clientname, signp->password);
-		appendToFile("clients.txt", entry);
+		if (makeDir(rmsg) != 0)
+			return -1;
+		if (appendToFile("clients.txt", entry) != 0)
+			return -1;		
 		printf("Successful user client signup for user: %s\n",signp->clientname);
 	}
 	return 0;
@@ -272,7 +279,8 @@ int TcpThread::authenticateClient(Email *rmsg)
 int TcpThread::appendToFile(const char *fname, char *entry)
 {
 	ofstream fclient;
-	fclient.open((char *)fname, ios::app | ios::out);	
+	printf("file to open:%s", fname);
+	fclient.open((char *)fname, ios::app | ios::out);
 	if (fclient.is_open()){
 		fclient << entry;
 		fclient.close();
@@ -410,6 +418,103 @@ int TcpThread::eraseClientFromMapping(const char *fname, char *user)
 	return res;
 }
 
+int	TcpThread::makeDir(Email *rmsg)
+{
+	char	*saveDir;
+	char	*emailFolder = new char[10];
+	
+	signp = (Sign *)rmsg->buffer;
+	saveDir = new char[FROM_LENGTH + 20];
+	strcpy(emailFolder, "emails");
+	_mkdir(emailFolder);
+	sprintf(saveDir, "%s\\%s", emailFolder, signp->clientname);
+	//printf("Dirname1:%s\n",saveDir);
+	if (_mkdir(saveDir) != 0){
+		printf("could not create directory, error");
+		return -1;
+	}
+	sprintf(saveDir, "%s\\%s\\%s", emailFolder, signp->clientname, "sent");
+	//printf("Dirname2:%s\n",saveDir);
+	if (_mkdir(saveDir) != 0){
+		printf("could not create directory, error");
+		return -1;
+	} //create directory if not exist
+	sprintf(saveDir, "%s\\%s\\%s", emailFolder, signp->clientname, "inbox");
+	//printf("Dirname3:%s\n",saveDir);
+	if (_mkdir(saveDir) != 0){
+		printf("could not create directory, error");
+		return -1;
+	} //create directory if not exist
+	return 0;
+}
+
+int	TcpThread::copyFile(char *srcFname, char *destFname)
+{
+	char	*buf;
+	FILE	*fin;
+	FILE	*fout;
+	int		size;
+	int 	n;
+
+	printf("sourcefile:%s, dest:%s\n", srcFname, destFname);
+	if ((fin = fopen(srcFname, "r")) == NULL){
+		printf("Could not open a file to read when copying\n");
+		return (-1);
+	}
+	if ((fout = fopen(destFname, "w")) == NULL){
+		printf("Could not open a file to write when copying\n");
+		return (-1);
+	}
+	buf = (char *)malloc(sizeof(char) * MTU_SIZE + 1);
+	if (buf == NULL){
+		printf("memory error!"); return -1;
+	}	
+	while ((size = fread(buf, sizeof(char), MTU_SIZE, fin)) > 0)
+		if ((n = fwrite(buf, sizeof(char), size, fout)) < 0)
+			return -1;
+	if (buf) free(buf);
+	fclose(fin);
+	fclose(fout);
+	return 0;
+}
+
+/*save Email and attachment from sender to senders and receivers client*/
+int	TcpThread::saveEmailToFile(int cs, Email *rmsg, char *body, char **fname, FILE *frecv)
+{
+	printf("Saving Email to file\n");
+	Esend	*email;
+	Header	*header;
+	char	*sentFile;
+	char	*inboxFile;
+
+	email = (Esend *)rmsg->buffer;
+	header = (Header *)email->header;
+	sentFile = new char[FSIZE];	
+	inboxFile = new char[FSIZE];	
+	sprintf(sentFile, "emails\\%s\\sent\\%s_%s.txt", header->from, header->subject, header->tstamp);
+	sprintf(inboxFile, "emails\\%s\\inbox\\%s_%s.txt", header->to, header->subject, header->tstamp);
+	ofstream fclient;
+	fclient.open(sentFile);
+	if (fclient.is_open()){
+		fclient << "FROM: "<<header->from<<endl;
+		fclient << "TO: "<<header->to<<endl;
+		fclient << "SUBJECT: "<<header->subject<<endl;
+		fclient << "TIME STAMP: "<<header->tstamp<<endl;
+		fclient << body<<endl;
+		fclient.close();
+	}
+	else{
+		printf("Unable to open file\n");
+		return -1;
+	}
+	if (copyFile(sentFile, inboxFile) != 0)
+		return -1;	
+	if (Esendp->file_size != -1)
+		if ((receiveFileAttachment(cs, rmsg, fname, frecv)) != Esendp->file_size)
+			err_sys("Error, could not receive the file attachment");
+	return 0;
+}
+
 /*receive file attachment from sender*/
 long	TcpThread::receiveFileAttachment(int cs, Email *rmsg, char **fname, FILE *frecv)
 {
@@ -418,13 +523,21 @@ long	TcpThread::receiveFileAttachment(int cs, Email *rmsg, char **fname, FILE *f
 	long	ret;
 	char	*buf;
 	long	offset;
+	char	*sentFile;
+	char	*inboxFile;
+	Header	*header;
 
 	printf("Receiving file attachment\n");
+	sentFile = new char[FSIZE];
 	*fname = new char[Esendp->filename_size + 1];
+	inboxFile = new char[FSIZE];
+	header = (Header *)Esendp->header;	
 	if ((n = recv(cs, *fname, Esendp->filename_size, 0)) <= 0)
 			err_sys("File name receive error");
 	(*fname)[Esendp->filename_size] = '\0';
-	if ((frecv = fopen(*fname, "w")) == NULL){
+	sprintf(sentFile, "emails\\%s\\sent\\%s", header->from, *fname);
+	printf("file name:%s\n", *fname);
+	if ((frecv = fopen(sentFile, "w")) == NULL){
 		printf("Could not open a file to write\n");
 		return (-1);
 	}
@@ -439,6 +552,9 @@ long	TcpThread::receiveFileAttachment(int cs, Email *rmsg, char **fname, FILE *f
 	}
 	if (buf) free(buf);
 	fclose(frecv);
+	sprintf(inboxFile, "emails\\%s\\inbox\\%s", header->to, *fname);
+	if (copyFile(sentFile, inboxFile) != 0)
+		return -1;
 	return (offset);
 }
 
@@ -451,9 +567,12 @@ long	TcpThread::sendFileAttachment(int cs, Email *rmsg, char *fname, FILE *frecv
 	long	ret;
 	char	*buf;
 	int		offset;
+	char	*inboxFile;
 
 	ret = 0;
-	if ((frecv = fopen(fname, "r")) == NULL){
+	inboxFile = new char[FSIZE];
+	sprintf(inboxFile, "emails\\%s\\inbox\\%s", ((Header *)(Esendp->header))->to, fname);
+	if ((frecv = fopen(inboxFile, "r")) == NULL){
 		printf("Could not open a file to write\n");
 		return (-1);
 	}
@@ -480,5 +599,3 @@ int main(void)
 	ts.start();	
 	return 0;
 }
-
-
