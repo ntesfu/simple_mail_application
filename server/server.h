@@ -19,6 +19,10 @@
 #include <process.h>
 #include "Thread.h"
 #include <direct.h>
+#include <filesystem>
+#include <bits/stdc++.h>
+#include <set>
+#include <stack>
 
 #define HOSTNAME_LENGTH 20
 #define PASS_LENGTH 20
@@ -55,6 +59,7 @@ typedef struct
 	char	hostname[HOSTNAME_LENGTH];
 	char	header[HEADER_LENGTH];
 	int		body_length;
+	int		num_receivers;
 	long	file_size;
 	int		filename_size;
 } Esend;  //request
@@ -121,11 +126,14 @@ public:
 	int		copyFile(char *srcFname, char *destFname);
 	int		saveEmailToFile(int cs, Email *rmsg, char *body, char **fname, FILE *frecv);
 	long	receiveFileAttachment(int cs, Email *rmsg, char **fname, FILE *frecv);
+	int		sendInboxToReceiver(int cs, char *clientname);
+	int		fillEmailPointer(char *filepath, char **body);
 	long	sendFileAttachment(int cs, Email *rmsg, char *fname, FILE *frecv);
 	int		appendToFile(const char *fname, char *entry);
 	int		eraseClientFromMapping(const char *fname, char *client);
 	int		IndexOf(string str, char c);
 	char	*ft_substr(string s, unsigned int start, size_t len);
+	char 	*getFileName(char *str);
 };
 
 #endif

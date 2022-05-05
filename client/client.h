@@ -14,6 +14,8 @@
 #include <unistd.h>
 #include <fstream>
 #include <time.h>
+#include <stack>
+#include <bits/stdc++.h>
 
 #define HOSTNAME_LENGTH 20
 #define PASS_LENGTH 20
@@ -31,6 +33,7 @@
 #define TRACE 0
 #define MSGHDRSIZE 8 //Message Header Size
 
+using namespace std;
 typedef enum
 {
 	SGN_UP = 1, SGN_IN, SGNIN_RECV, EMAIL, RESP
@@ -48,6 +51,7 @@ typedef struct
 	char	hostname[HOSTNAME_LENGTH];
 	char	header[HEADER_LENGTH];
 	int		body_length;
+	int		num_receivers;
     long	file_size;
 	int		filename_size;
 } Esend;  //request
@@ -100,11 +104,14 @@ public:
 	int 	sendFileAttachment(FILE *fa, Email *smsg, char *modFileName);
 	long	receiveFileAttachment(Email *rmsg, char **fname, FILE *frecv);
     void	receiveEmail(int);
+	void	printStructure(Email msg);
 	int 	msg_recv(int, Email*, char **);
 	int 	msg_send(int, Email*, char*);
+	void	modeSignin(char **inputform);
+	int		getBodyFromTerminal(char **inputbody);
+	int		fillEmailPointerTerminal(stack<char *> *multiReceivers, char **inputbody, FILE *fa, char **modFileName, char *inputfrom);
 	unsigned long ResolveName(char name[]);
 	void err_sys(const char* fmt, ...);
-
 };
 
 int		IndexOf(std::string str, char c);

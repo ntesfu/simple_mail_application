@@ -4,7 +4,7 @@
 /*
  * This is the callback needed by the Thread class
  */
-void * Thread::pthread_callback (void * ptrThis) 
+void *Thread::pthread_callback (void * ptrThis) 
 {
 
     if ( ptrThis == NULL )

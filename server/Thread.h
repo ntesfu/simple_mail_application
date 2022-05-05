@@ -15,7 +15,7 @@ class Thread{
 		virtual ~Thread()
 		{}
 
-		static void * pthread_callback (void * ptrThis);
+		static void *pthread_callback (void * ptrThis);
 
 		virtual void run () =0 ;
 		void  start();
