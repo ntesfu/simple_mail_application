@@ -59,7 +59,7 @@ void TcpClient::run(int argc, char* argv[])
 	cout << "Mail Client starting on host: "<<Esendp->hostname<<endl;
 	cout << endl;
 	
-
+	
 	//fill email pointer from terminal
 	int body_len = fillEmailPointerTerminal(&multiReceivers, &inputbody, fa, &modFileName, inputfrom);
 	//printf("bodylen:%d:%d:%s\n", body_len, multiReceivers.size(), modFileName);
@@ -69,7 +69,7 @@ void TcpClient::run(int argc, char* argv[])
 	{
 		//printStructure(smsg);
 		int valid = 1;
-		printf("Sending email to: %s\n", headerp->to);
+		printf("\nSending email to: %s\n", headerp->to);
 		multiReceivers.pop();
 		//save email constructed to file
 		if ((saveEmailToFile(&smsg, inputbody, SGN_IN) != 0))

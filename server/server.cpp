@@ -66,7 +66,7 @@ void TcpServer::start()
         /* Create a Thread for this new connection and run*/
 		TcpThread * pt=new TcpThread(clientSock);
 		pt->start();
-		printf("returned from thread\n");
+		//printf("returned from thread\n");
 	}
 }
 
@@ -168,13 +168,13 @@ void TcpThread::run() //cs: Server socket
 			headerp=(Header *)Esendp->header;
 			smsg.length=sizeof(Esend);
 
-			printf("Received email to client: %s, from: %s\n",headerp->to, headerp->from);
+			printf("\nReceived email to client: %s, from: %s\n",headerp->to, headerp->from);
 			if (checkClientEntry(headerp->to, NULL, 2) != 0){
 				printf("Invalid Email Receipent!\n");
 				strcpy(respp->rcode, "501");
 				if(msg_send(cs,&smsg,NULL)!=smsg.length)
 					err_sys("send Response failed,exit");
-				printf("\nwaiting to be contacted for transferring Mail...\n\n");
+				//printf("\nwaiting to be contacted for transferring Mail...\n\n");
 				continue;
 			}
 			//printf("finished checking client entry\n");

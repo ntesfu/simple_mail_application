@@ -37,7 +37,7 @@ int	TcpClient::saveEmailToFile(Email *msg, char *body, Type tp)
 /*copies the provided file path to the working directory of the sender process*/
 int TcpClient::copyFileToDirectory(FILE *fa, Email *msg, char **modFileName, char *filepath)
 {
-	printf("Copying file to working directory\n");
+	//printf("Copying file to working directory\n");
 	FILE	*fout;
 	char	*fname;
 	int 	idx;
@@ -58,7 +58,7 @@ int TcpClient::copyFileToDirectory(FILE *fa, Email *msg, char **modFileName, cha
 	idx = IndexOf((string)fname, '/');
 	*modFileName = ft_substr((string)fname, idx + 1, strlen(fname) - idx);
 	Esendp->filename_size = strlen(*modFileName);
-	printf("in copying file, filename length is :%d\n", Esendp->filename_size);
+	//printf("in copying file, filename length is :%d\n", Esendp->filename_size);
 	if ((fout = fopen(fname, "w")) == NULL){
 		printf("Could not open a file to copy\n");
 		return (-1);

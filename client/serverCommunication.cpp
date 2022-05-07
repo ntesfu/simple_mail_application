@@ -72,7 +72,7 @@ int TcpClient::sendFileAttachment(FILE *fa, Email *msg, char *modFileName)
 				err_sys("could not open file specified\n");
 
 	//send file name first
-	printf("sending:filename:%s, size:%d\n", modFileName, strlen(modFileName));
+	//printf("sending:filename:%s, size:%d\n", modFileName, strlen(modFileName));
 	if ((n = send(sock, (char*)modFileName, strlen(modFileName), 0)) != (strlen(modFileName)))
 		err_sys("Send File Name error");
 	buf = (char *)malloc(sizeof(char) * MTU_SIZE + 1);
