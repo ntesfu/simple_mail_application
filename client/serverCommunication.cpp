@@ -68,16 +68,15 @@ int TcpClient::sendFileAttachment(FILE *fa, Email *msg, char *modFileName)
 	//printf("after fa rewind\n");
 	filepath = new char[FILE_LENGTH];
 	sprintf(filepath, "send\\%s", modFileName);
-	if ((fa = fopen((const char *)filepath, "r")) == NULL)
+	if ((fa = fopen((const char *)filepath, "rb")) == NULL)
 				err_sys("could not open file specified\n");
 
 	//send file name first
-	//printf("sending:filename:%s, size:%d\n", modFileName, strlen(modFileName));
 	if ((n = send(sock, (char*)modFileName, strlen(modFileName), 0)) != (strlen(modFileName)))
 		err_sys("Send File Name error");
 	buf = (char *)malloc(sizeof(char) * MTU_SIZE + 1);
 	if (!buf) return (-1);
-	while ((size = fread(buf, sizeof(char), MTU_SIZE, fa)) > 0){
+	while ((size = fread(buf, 1, MTU_SIZE, fa)) > 0){
 		ret += size;	
 		offset = 0;
 		while ((n = send(sock, buf + offset, size - offset, 0)) > 0){
@@ -112,7 +111,7 @@ long	TcpClient::receiveFileAttachment(Email *rmsg, char **fname, FILE *frecv)
 	strcpy(*fname, "received/");
 	strcat(*fname, temp);
 	free(temp);
-	if ((frecv = fopen(*fname, "w")) == NULL){
+	if ((frecv = fopen(*fname, "wb")) == NULL){
 		printf("Could not open a file to write\n");
 		return (-1);
 	}
@@ -122,7 +121,7 @@ long	TcpClient::receiveFileAttachment(Email *rmsg, char **fname, FILE *frecv)
 		recvSize = (MTU_SIZE > Esendp->file_size -offset)? Esendp->file_size - offset : MTU_SIZE;
 		if ((n = recv(sock, buf, recvSize, 0)) <= 0)
 			err_sys("Reading file error");
-		fwrite(buf, sizeof(char), n, frecv);
+		fwrite(buf, 1, n, frecv);
 		fflush(frecv);
 	}
 	fclose(frecv);

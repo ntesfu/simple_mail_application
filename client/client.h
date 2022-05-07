@@ -110,6 +110,7 @@ public:
 	void	modeSignin(char **inputform);
 	int		getBodyFromTerminal(char **inputbody);
 	int		fillEmailPointerTerminal(stack<char *> *multiReceivers, char **inputbody, FILE *fa, char **modFileName, char *inputfrom);
+	int		fillEmailPointerFromFile(stack<char *> *multiReceivers, char **inputbody, FILE *fa, char **modFileName, char *inputfrom);
 	unsigned long ResolveName(char name[]);
 	void err_sys(const char* fmt, ...);
 };

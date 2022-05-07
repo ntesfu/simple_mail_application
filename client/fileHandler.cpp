@@ -59,14 +59,14 @@ int TcpClient::copyFileToDirectory(FILE *fa, Email *msg, char **modFileName, cha
 	*modFileName = ft_substr((string)fname, idx + 1, strlen(fname) - idx);
 	Esendp->filename_size = strlen(*modFileName);
 	//printf("in copying file, filename length is :%d\n", Esendp->filename_size);
-	if ((fout = fopen(fname, "w")) == NULL){
+	if ((fout = fopen(fname, "wb")) == NULL){
 		printf("Could not open a file to copy\n");
 		return (-1);
 	}
 	buf = (char *)malloc(sizeof(char) * MTU_SIZE + 1);
 	if (!buf) return (-1);
-	while ((size = fread(buf, sizeof(char), MTU_SIZE, fa)) > 0){
-		fwrite(buf, sizeof(char), size, fout);
+	while ((size = fread(buf, 1, MTU_SIZE, fa)) > 0){
+		fwrite(buf, 1, size, fout);
 	}
 	if (buf) free(buf);
 	if (size < 0) return -1;
@@ -74,3 +74,4 @@ int TcpClient::copyFileToDirectory(FILE *fa, Email *msg, char **modFileName, cha
 	fclose(fa);
 	return 0;
 }
+

@@ -39,6 +39,7 @@ void TcpClient::run(int argc, char* argv[])
 	int				cmd;
 	char*			inputfrom;
 	stack<char *>	multiReceivers;
+	int				body_len;
 	//initilize winsocket
 	if (WSAStartup(0x0202, &wsadata) != 0)
 	{
@@ -54,15 +55,27 @@ void TcpClient::run(int argc, char* argv[])
 	char*			modFileName;
 
 	Esendp = (Esend *)smsg.buffer;
+	filepath = new char[FILE_LENGTH];
 	if (gethostname(Esendp->hostname, HOSTNAME_LENGTH) != 0) //get the hostname
 		err_sys("can not get the host name,program exit");
 	cout << "Mail Client starting on host: "<<Esendp->hostname<<endl;
 	cout << endl;
 	
 	
-	//fill email pointer from terminal
-	int body_len = fillEmailPointerTerminal(&multiReceivers, &inputbody, fa, &modFileName, inputfrom);
-	//printf("bodylen:%d:%d:%s\n", body_len, multiReceivers.size(), modFileName);
+	// options when you sign in
+	cout << "To send a new email, press 1; To forward an email, press 2: ";
+	cin >> cmd;
+	cin.ignore();
+	cout << endl;
+	if (cmd == 1)
+		body_len = fillEmailPointerTerminal(&multiReceivers, &inputbody, fa, &modFileName, inputfrom);
+	else if (cmd == 2)
+	{
+		body_len =  fillEmailPointerFromFile(&multiReceivers, &inputbody, fa, &modFileName, inputfrom);			
+	}
+	if (body_len == -1)
+		err_sys("Error, building email structure unsuccessful");
+	
 	
 	Esendp->num_receivers = multiReceivers.size();
 	while (!multiReceivers.empty())
@@ -94,13 +107,12 @@ void TcpClient::run(int argc, char* argv[])
 		else
 			printf("Email was not sent!\n");
 		
-		// send file attachment after we are sure we can send it
+		// send file attachment after we are sure we can send it (if client is not valid no need to send file attach)
 		if (Esendp->file_size != -1 && valid == 1){
 			if ((sendFileAttachment(fa, &smsg, modFileName)) != Esendp->file_size)
 				err_sys("Error, could not send file attachment\n");
 		}
-		strcpy(headerp->to, multiReceivers.top());
-		
+		strcpy(headerp->to, multiReceivers.top());		
 	}
 	if (modFileName) free(modFileName);
 	fclose(fa);

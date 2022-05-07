@@ -122,14 +122,15 @@ int	TcpClient::fillEmailPointerTerminal(stack<char *> *multiReceivers, char **in
 		cout <<"Input the file path: ";
 		cin.getline(filepath, FILE_LENGTH);
 		cout <<endl;
-		if ((fa = fopen((const char *)filepath, "r")) == NULL)
+		if ((fa = fopen((const char *)filepath, "rb")) == NULL)
 			err_sys("could not open file specified\n");
 		int n;
 		long fsize = 0;
 		char c;
-		while ((n = fread(&c, sizeof(char), 1, fa)) > 0){
+		while ((n = fread(&c, 1, 1, fa)) > 0){
 			fsize++;
 		}
+		printf("file size read as binary is:%ld\n", fsize);
 		Esendp->file_size = fsize;
 		rewind(fa);
 		int x;
@@ -139,4 +140,104 @@ int	TcpClient::fillEmailPointerTerminal(stack<char *> *multiReceivers, char **in
 	else
 		Esendp->file_size = -1;	//if no file attachment is choosen
 	return body_len;
+}
+
+int	TcpClient::fillEmailPointerFromFile(stack<char *> *multiReceivers, char **inputbody, FILE *fa, char **modFileName, char *inputfrom)
+{
+	int			body_len;
+	char		*filepath;
+	char		*filename;
+	char		*dir;	
+	char		*inputto;
+	int			cmd;
+	ifstream	fin;
+	string		seg;	
+
+	inputto = new char[TO_LENGTH];
+	dir = new char[10];
+	filename = new char[FILE_LENGTH];
+
+	cout << "Input directory (send/received): ";
+	cin.getline(dir, 10);
+	cout << "Input the file name: ";
+	cin.getline(filename, FILE_LENGTH);
+	cout <<endl;
+	cout << "To: ";
+	cin.getline(inputto, TO_LENGTH);
+	cout <<endl;
+	
+	headerp = (Header *)Esendp->header;
+	filepath = new char[FILE_LENGTH];
+	sprintf(filepath, "%s\\%s", dir, filename);
+	fin.open(filepath, ios::in);
+	if (fin.is_open())
+	{
+		getline(fin, seg, '\n');
+		getline(fin, seg, '\n');
+		sprintf(headerp->from, "%s", inputfrom);
+		sprintf(headerp->to, "%s", inputto);
+		getline(fin, seg, ' ');
+		getline(fin, seg);
+		sprintf(headerp->subject, "%s", (char *)seg.c_str());
+	
+		getline(fin, seg, ' ');
+		getline(fin, seg);
+		time(&curr_time);
+		tmp = localtime(&curr_time);
+		strftime(headerp->tstamp, TSTAMP_LENGTH, "%d-%m-%Y_%H-%M-%S", tmp);
+	
+		string line = "";
+		getline(fin, seg);
+		line = line + seg;
+		while (getline(fin, seg))
+			line = line + '\n' + seg;
+		*inputbody = (char *)malloc(sizeof(char) * (line.length() + 1));
+		sprintf(*inputbody, "%s", (char *)line.c_str());
+		(*inputbody)[line.length()] = '\0';
+		fin.close();
+		body_len = strlen(*inputbody);
+		Esendp->body_length = body_len;
+		smsg.length = sizeof(Esend);
+		smsg.type = EMAIL;
+
+		namespace		fs = std::filesystem;
+		string			str;
+		char			*chr;
+		set <fs::path>	sortedByName;
+		const fs::path	forwardDir{dir};
+		int flag = 0;
+		int idx = IndexOf((string)filepath, '.');
+		char *fext = ft_substr((string)filepath, 0, idx);
+		sprintf(filepath, "%s(op)", fext);
+		if (fext) free(fext);
+		for (auto const& dir_entry : fs::directory_iterator{forwardDir}){
+			sortedByName.insert(dir_entry.path());
+		}
+		for (auto &file : sortedByName){
+			str = file.string();
+			chr = (char *)str.c_str();			
+			if (strstr(chr, filepath) != NULL)
+			{
+				flag = 1;
+				if ((fa = fopen((const char *)chr, "rb")) == NULL)
+					err_sys("could not open file specified\n");
+				int n;
+				long fsize = 0;
+				char c;
+				while ((n = fread(&c, 1, 1, fa)) > 0)
+					fsize++;
+				Esendp->file_size = fsize;
+				rewind(fa);
+				int x;
+				if ((x = copyFileToDirectory(fa, &smsg, modFileName, chr)) != 0)
+					err_sys("Error, coudn't copying file to working directory\n");
+				break;
+			}
+		}
+		if (flag == 0)
+			Esendp->file_size = -1;
+		(*multiReceivers).push(strdup(headerp->to));
+		return body_len;
+	}
+	return -1;
 }
