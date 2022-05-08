@@ -1,8 +1,7 @@
 #include "client.h"
 
 using namespace std;
-/*
-msg_recv returns the length of bytes in the msg_ptr->buffer,which have been recevied successfully.*/
+/*msg_recv returns the length of bytes in the msg_ptr->buffer,which have been recevied successfully.*/
 int TcpClient::msg_recv(int sock,Email * msg_ptr, char **body)
 {
 	int rbytes,n;
@@ -27,7 +26,7 @@ int TcpClient::msg_recv(int sock,Email * msg_ptr, char **body)
 	return msg_ptr->length;
 }
 
-/* msg_send returns the length of bytes in msg_ptr->buffer,which have been sent out successfully*/
+/*msg_send returns the length of bytes in msg_ptr->buffer,which have been sent out successfully*/
 int TcpClient::msg_send(int sock, Email* msg_ptr, char *body)
 {
 	int n;
@@ -131,10 +130,10 @@ long	TcpClient::receiveFileAttachment(Email *rmsg, char **fname, FILE *frecv)
 /*infinite looping function that is closed if the client instance wants to listen*/
 void TcpClient::receiveEmail(int sock)
 {
-	char *body;
-	char *fname;
-	FILE *frecv;
-	long x;
+	char	*body;
+	char	*fname;
+	FILE	*frecv;
+	long	x;
 	int		i;
 	
 	i = 1;
@@ -144,26 +143,18 @@ void TcpClient::receiveEmail(int sock)
 		if(msg_recv(sock,&rmsg, &body)!=rmsg.length)
 			err_sys("Receive Req error,exit");
 		headerp=(Header *)Esendp->header;
-		printf("%d. From: %s Subject: %s Time: %s\n",i++, headerp->from, headerp->subject, headerp->tstamp);
-		//printf("Received an Email from client: %s\n",Esendp->hostname);
-		//printf("Mail Received from %s\n", Esendp->hostname);
-		// printf("From: %s\n", headerp->from);
-		// printf("To: %s\n", headerp->to);
-		// printf("Subject: %s\n", headerp->subject);
-		// printf("Time: %s\n", headerp->tstamp);
-		// printf("%s\n\n", body);
-		//save the email received as a file		
+		printf("%2d. From: %15s Subject: %15s Time: %20s",i++, headerp->from, headerp->subject, headerp->tstamp);
 		if ((x = saveEmailToFile(&rmsg, body, SGNIN_RECV) != 0))
 			err_sys("Error, could not save email to file!");
 		if (body)
 			free(body);
-		//if there is a file attachment call receiveFileAttachment function
 		if (Esendp->file_size != -1){
 			if ((x = receiveFileAttachment(&rmsg, &fname, frecv)) != Esendp->file_size){
 				printf("file attachment received:%s:filesize:%ld:%ld\n", fname,x,Esendp->file_size);
 				err_sys("Error, could not receive the file attachment");			
 			}
-			//printf("file attachment received:%s:filesize:%ld:%ld\n", fname,x,Esendp->file_size);				
+			printf("; with file attachement");
 		}
+		printf("\n");
 	}
 }

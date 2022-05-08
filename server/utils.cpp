@@ -1,5 +1,6 @@
 #include "server.h"
 
+//returns the index of char c in the string str (-1 if not found)
 int TcpThread::IndexOf(string str, char c)
 {
 	int i = 0;
@@ -11,6 +12,7 @@ int TcpThread::IndexOf(string str, char c)
 	return (-1);
 }
 
+//gets the substring in char * of String s from start index to length len
 char	*TcpThread::ft_substr(string s, unsigned int start, size_t len)
 {
 	char	*res;
@@ -26,6 +28,7 @@ char	*TcpThread::ft_substr(string s, unsigned int start, size_t len)
 	return (res);
 }
 
+//called when a client signs up to service to create inbox and sent directory for the client
 int	TcpThread::makeDir(Email *rmsg)
 {
 	char	*saveDir;
@@ -36,26 +39,24 @@ int	TcpThread::makeDir(Email *rmsg)
 	strcpy(emailFolder, "emails");
 	_mkdir(emailFolder);
 	sprintf(saveDir, "%s\\%s", emailFolder, signp->clientname);
-	//printf("Dirname1:%s\n",saveDir);
 	if (_mkdir(saveDir) != 0){
 		printf("could not create directory, error");
 		return -1;
 	}
 	sprintf(saveDir, "%s\\%s\\%s", emailFolder, signp->clientname, "sent");
-	//printf("Dirname2:%s\n",saveDir);
 	if (_mkdir(saveDir) != 0){
 		printf("could not create directory, error");
 		return -1;
 	} //create directory if not exist
 	sprintf(saveDir, "%s\\%s\\%s", emailFolder, signp->clientname, "inbox");
-	//printf("Dirname3:%s\n",saveDir);
 	if (_mkdir(saveDir) != 0){
 		printf("could not create directory, error");
 		return -1;
-	} //create directory if not exist
+	}
 	return 0;
 }
 
+//returns 0 if successfully copied file from a source path to destination
 int	TcpThread::copyFile(char *srcFname, char *destFname)
 {
 	char	*buf;
@@ -64,7 +65,6 @@ int	TcpThread::copyFile(char *srcFname, char *destFname)
 	int		size;
 	int 	n;
 
-	//printf("Copying File--> sourcefile:%s, dest:%s\n", srcFname, destFname);
 	if ((fin = fopen(srcFname, "rb")) == NULL){
 		printf("Could not open a file to read when copying\n");
 		return (-1);
@@ -86,6 +86,7 @@ int	TcpThread::copyFile(char *srcFname, char *destFname)
 	return 0;
 }
 
+//strip and return the file name to be sent from a path str
 char *TcpThread::getFileName(char *str)
 {
 	stringstream	path(str);
@@ -96,7 +97,6 @@ char *TcpThread::getFileName(char *str)
 	{
 		stack.push(seg);
 	}
-	//printf("retrieved file name is : %s\n",stack.top().c_str());
 	fname = new char[stack.top().length()];
 	sprintf(fname, "%s", (char *)stack.top().c_str());
 	return fname;

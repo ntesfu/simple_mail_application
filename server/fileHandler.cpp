@@ -1,6 +1,7 @@
 #include "server.h"
 
-/*save Email and attachment from sender to senders and receivers client*/
+/*save Email and file attachment from sender to senders sent dir and receivers inbox directory
+if successfully proccessed returns the value 0*/
 int	TcpThread::saveEmailToFile(int cs, Email *rmsg, char *body, char **fname, FILE *frecv)
 {
 	printf("Saving Email to file\n");
@@ -37,6 +38,7 @@ int	TcpThread::saveEmailToFile(int cs, Email *rmsg, char *body, char **fname, FI
 	return 0;
 }
 
+/*checks if a client is saved in the clients.txt and returns 0 if found*/
 int TcpThread::checkClientEntry(char *user, char *passwd, int full){	
     char	*client;
 	char	*clientpass;
@@ -74,6 +76,7 @@ int TcpThread::checkClientEntry(char *user, char *passwd, int full){
 	return res;
 }
 
+/*checks if a client is mapped, meaning already connected to receive email*/
 int TcpThread::checkClientMapping(char *user)
 {
 	char	*client;
@@ -98,16 +101,13 @@ int TcpThread::checkClientMapping(char *user)
 			free(client);
     		free(sockChar);
 		}
-		// if (client)
-		// 	free(client);
-		// if (sockChar)
-		// 	free(sockChar);
 		fclient.close();
 
 	}
 	return res;
 }
 
+/*erases a client from mapping incase the client disconnects*/
 int TcpThread::eraseClientFromMapping(const char *fname, char *user)
 {
 	char		*client;
@@ -140,46 +140,41 @@ int TcpThread::eraseClientFromMapping(const char *fname, char *user)
 	return res;
 }
 
+/*generic function to append entry to any class given by fname*/
 int TcpThread::appendToFile(const char *fname, char *entry)
 {
 	ofstream fclient;
-	printf("file to open:%s\n", fname);
 	fclient.open((char *)fname, ios::app | ios::out);
 	if (fclient.is_open()){
 		fclient << entry;
 		fclient.close();
-		//printf("here\n");
 		return 0;
 	}
 	printf("Unable to open file\n");
 	return -1;	
 }
 
+/*fills an email pointer from a file to be sent from a clients inbox when a
+client signs up to receive*/
 int	TcpThread::fillEmailPointer(char *filepath, char **body)
 {
 	ifstream	fin;
 	string		seg;
 	headerp = (Header *)Esendp->header;
 	fin.open(filepath, ios::in);
-	//printf("filling email pointer:%s\n", filepath);
 	if (fin.is_open())
 	{
-		//cout <<"inside if"<<endl;
 		getline(fin, seg, ' ');
 		getline(fin, seg, '\n');
-		
 		sprintf(headerp->from, "%s", (char *)seg.c_str());
-		//printf("after sprintf:%s\n", headerp->from);
 
 		getline(fin, seg, ' ');
 		getline(fin, seg);
 		sprintf(headerp->to, "%s", (char *)seg.c_str());
-		//printf("after sprintf:%s\n", headerp->to);
 
 		getline(fin, seg, ' ');
 		getline(fin, seg);
 		sprintf(headerp->subject, "%s", (char *)seg.c_str());
-		//printf("after sprintf:%s\n", headerp->subject);
 	
 		getline(fin, seg, ' ');
 		getline(fin, seg);

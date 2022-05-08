@@ -19,6 +19,7 @@ int TcpThread::msg_recv(int sock,Email * msg_ptr, char **body)
 		for(rbytes=0 ; rbytes<Esendp->body_length;rbytes+=n)
 			if((n=recv(sock, (char *)*body + rbytes, Esendp->body_length-rbytes, 0)) <= 0)
 				err_sys("Recevier Buffer Error");
+		(*body)[Esendp->body_length] = '\0';
 	}
 	return msg_ptr->length;
 }
@@ -65,34 +66,25 @@ int	TcpThread::sendInboxToReceiver(int cs, char *clientname)
 	dir = new char[FSIZE];
 	sprintf(dir, "emails\\%s\\inbox", clientname); 
 	flag = 0;
-	//cout << "directory_iterator:\n"<<dir<<endl;
 	const fs::path	inboxDir{dir};
-    // Iterate over the `std::filesystem::directory_entry` elements
 	int i = 0;
     for (auto const& dir_entry : fs::directory_iterator{inboxDir}){
 		cout<<i++<<". "<<dir_entry<<endl;
-        sortedByName.insert(dir_entry.path());}
+        sortedByName.insert(dir_entry.path());
+	}
 	for (auto &filepath : sortedByName){
 		str = filepath.string();
 		chr = (char *)str.c_str();			
 		if (strstr(chr, "(op)") != NULL){
-			//cout <<"OPTIONAL FILE:"<<chr<<endl;
-			if ((fa = fopen((const char *)chr, "r")) == NULL)
+			if ((fa = fopen((const char *)chr, "rb")) == NULL)
 				printf("could not open file specified\n");
-			//cout <<fa<<endl;
 			fsize = 0;
-			while (fread(&c, sizeof(char), 1, fa) > 0){
-				//write(1, &c, 1);
-				fsize++;}
+			while (fread(&c, 1, 1, fa) > 0)
+				fsize++;
 			fclose(fa);
-			//cout <<"intializing";
 			Esendp->file_size = fsize;			
 			fileName = getFileName(chr);
 			Esendp->filename_size = strlen(fileName);
-			//cout <<"finish intializing";
-
-			//Esendp->;
-			//cout <<fsize<<endl;
 			fclose(fa);
 			flag = 1;
 		}
@@ -104,25 +96,20 @@ int	TcpThread::sendInboxToReceiver(int cs, char *clientname)
 				return -1;
 			}
 			Esendp->body_length = strlen(body);
-			//printf("send body:%s:%d\n", body, Esendp->body_length);
 			if (flag == 0){
 				Esendp->file_size = -1;
 				flag = 0;
 			}
-			
 			rmsg.type = EMAIL;
 			rmsg.length = sizeof(Esend);
 			if(msg_send(cs,&rmsg,body)!=rmsg.length + strlen(body))
 				err_sys("send Respose failed,exit");
-			//printf("about to free body\n");
 			if (body) free(body);
 			if (Esendp->file_size != -1)
-			//printf("about to send file name:%s:\n", fileName);
 				if ((sendFileAttachment(cs, &rmsg, fileName, fa)) != Esendp->file_size)
 					err_sys("Error, could not send the file attachment");
 					
 		}
-		//cout << filepath << endl;
 	}
 	return (0);
 }
@@ -149,8 +136,7 @@ long	TcpThread::receiveFileAttachment(int cs, Email *rmsg, char **fname, FILE *f
 			err_sys("File name receive error");
 	(*fname)[Esendp->filename_size] = '\0';
 	sprintf(sentFile, "emails\\%s\\sent\\%s", header->from, *fname);
-	//printf("file name:%s\n", *fname);
-	if ((frecv = fopen(sentFile, "w")) == NULL){
+	if ((frecv = fopen(sentFile, "wb")) == NULL){
 		printf("Could not open a file to write\n");
 		return (-1);
 	}
@@ -161,7 +147,7 @@ long	TcpThread::receiveFileAttachment(int cs, Email *rmsg, char **fname, FILE *f
 		recvSize = (MTU_SIZE > Esendp->file_size -offset)? Esendp->file_size - offset : MTU_SIZE;
 		if ((n = recv(cs, buf, recvSize, 0)) <= 0)
 			err_sys("Reading file error");
-		fwrite(buf, sizeof(char), n, frecv);
+		fwrite(buf, 1, n, frecv);
 		fflush(frecv);
 	}
 	if (buf) free(buf);
@@ -186,24 +172,19 @@ long	TcpThread::sendFileAttachment(int cs, Email *rmsg, char *fname, FILE *frecv
 	ret = 0;
 	inboxFile = new char[FSIZE];
 	sprintf(inboxFile, "emails\\%s\\inbox\\%s", ((Header *)(Esendp->header))->to, fname);
-	//printf("file to send:%s:%s:%d:%d\n", inboxFile,fname,Esendp->filename_size, Esendp->file_size);
-	if ((frecv = fopen(inboxFile, "r")) == NULL){
+	if ((frecv = fopen(inboxFile, "rb")) == NULL){
 		printf("Could not open a file to write\n");
 		return (-1);
 	}
-	if ((n = send(cs, (char*)fname, Esendp->filename_size, 0)) != Esendp->filename_size){
-		
+	if ((n = send(cs, (char*)fname, Esendp->filename_size, 0)) != Esendp->filename_size)		
 		err_sys("Send File Name error");
-	}
-	//printf("Error file:%s:%d:%d:%d\n", fname, n, Esendp->filename_size, Esendp->file_size);
 	buf = (char *)malloc(sizeof(char) * MTU_SIZE + 1);
 	if (!buf) return (-1);
-	while ((size = fread(buf, sizeof(char), MTU_SIZE, frecv)) > 0){
+	while ((size = fread(buf, 1, MTU_SIZE, frecv)) > 0){
 		ret += size;	
 		offset = 0;
 		while ((n = send(cs, buf + offset, size - offset, 0)) > 0){
 			offset += n; 
-			//size -= n;
 		}
 	}
 	if (buf) free(buf);

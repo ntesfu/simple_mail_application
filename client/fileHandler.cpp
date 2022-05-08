@@ -5,7 +5,6 @@ using namespace std;
 /*saves the email structure msg into a file*/
 int	TcpClient::saveEmailToFile(Email *msg, char *body, Type tp)
 {
-	//printf("Saving Email to file\n");
 	Esend *email = (Esend *)msg->buffer;
 	Header *header = (Header *)email->header;
 	char *fname = new char[SUBJ_LENGTH + TSTAMP_LENGTH + 12];
@@ -18,7 +17,6 @@ int	TcpClient::saveEmailToFile(Email *msg, char *body, Type tp)
 	strcat(fname, header->tstamp);
 	strcat(fname, ".txt");
 
-	//printf("file name:%s\n", fname);
 	ofstream fclient;
 	fclient.open(fname);
 	if (fclient.is_open()){
@@ -37,7 +35,6 @@ int	TcpClient::saveEmailToFile(Email *msg, char *body, Type tp)
 /*copies the provided file path to the working directory of the sender process*/
 int TcpClient::copyFileToDirectory(FILE *fa, Email *msg, char **modFileName, char *filepath)
 {
-	//printf("Copying file to working directory\n");
 	FILE	*fout;
 	char	*fname;
 	int 	idx;
@@ -58,7 +55,6 @@ int TcpClient::copyFileToDirectory(FILE *fa, Email *msg, char **modFileName, cha
 	idx = IndexOf((string)fname, '/');
 	*modFileName = ft_substr((string)fname, idx + 1, strlen(fname) - idx);
 	Esendp->filename_size = strlen(*modFileName);
-	//printf("in copying file, filename length is :%d\n", Esendp->filename_size);
 	if ((fout = fopen(fname, "wb")) == NULL){
 		printf("Could not open a file to copy\n");
 		return (-1);

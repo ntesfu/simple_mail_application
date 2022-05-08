@@ -21,9 +21,7 @@ void Thread::start ()
 	{
 		printf("_beginthread error\n");
 		exit(-1);
-	}
-    
-	
+	}	
 }
 
 

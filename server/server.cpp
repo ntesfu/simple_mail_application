@@ -66,7 +66,6 @@ void TcpServer::start()
         /* Create a Thread for this new connection and run*/
 		TcpThread * pt=new TcpThread(clientSock);
 		pt->start();
-		//printf("returned from thread\n");
 	}
 }
 
@@ -95,6 +94,7 @@ unsigned long TcpThread::ResolveName(char name[])
 	return *((unsigned long *) host->h_addr_list[0]);
 }
 
+//the backbone of the server where a connection to a client is handled
 void TcpThread::run() //cs: Server socket
 {
     int		res;
@@ -119,7 +119,6 @@ void TcpThread::run() //cs: Server socket
 			return;
 		}		
 	}
-
 	//contruct the response and send it out
 	curr_time = time(NULL);
 	sprintf(respp->rcode, "%s", "250 OK");
@@ -154,16 +153,12 @@ void TcpThread::run() //cs: Server socket
 	if (rmsg.type == EMAIL){
 
 		int receivers = Esendp->num_receivers;
-		//printf("receiver:%d\n", receivers);
 		for (int i = 0; i < receivers; i++)
 		{
 			int valid = 1;
-			//printf("i:%d:%d\n", i, receivers);
 			if (i != 0)
-			{
 				if(msg_recv(cs, &rmsg, &body)!=rmsg.length)
 					err_sys("Receive Req error,exit");
-			}
 			//cast it to the request packet structure
 			headerp=(Header *)Esendp->header;
 			smsg.length=sizeof(Esend);
@@ -174,29 +169,17 @@ void TcpThread::run() //cs: Server socket
 				strcpy(respp->rcode, "501");
 				if(msg_send(cs,&smsg,NULL)!=smsg.length)
 					err_sys("send Response failed,exit");
-				//printf("\nwaiting to be contacted for transferring Mail...\n\n");
 				continue;
 			}
-			//printf("finished checking client entry\n");
-
 			int sock;
 			if ((sock = checkClientMapping(headerp->to)) <= 0){
 				printf("Client is not connected to receive!\n");
 				strcpy(respp->rcode, "550");
-				// if(msg_send(cs,&smsg,NULL)!=smsg.length)
-				// 	err_sys("send Response failed,exit");
 				valid = 0;
-				//printf("\nwaiting to be contacted for transferring Mail...\n\n");
 			}
-			//printf("Receiving client is connected\n");
-
-			//otherwise good to go: send code 250 or 550 to sender
-			//printf("sending reply to sender\n");
+			//sending reply to sender
 			if(msg_send(cs,&smsg,NULL)!=smsg.length)
 				err_sys("send Response failed,exit");
-			
-			
-
 			// save email to inbox of receiver and sent of sender
 			if (saveEmailToFile(cs, &rmsg, body, &modsentFile, frecv) != 0)
 				err_sys("Saving Email to file failed, exit");
@@ -204,18 +187,13 @@ void TcpThread::run() //cs: Server socket
 			if (valid == 1)
 			{
 				//sending data to connected client
-				//printf("Sending Email to receiver client\n");
 				int body_len = ((Esend *)rmsg.buffer)->body_length;
 				if(msg_send(sock,&rmsg,body)!=rmsg.length + body_len)
 				err_sys("send Respose failed,exit");
 				//send optional file if exists
-				if (Esendp->file_size != -1){
-					// if ((x = receiveFileAttachment(cs, &rmsg, &modsentFile, frecv)) != Esendp->file_size)
-					// 	err_sys("Error, could not receive the file attachment");
+				if (Esendp->file_size != -1)
 					if ((sendFileAttachment(sock, &rmsg, modsentFile, frecv)) != Esendp->file_size)
 						err_sys("Error, could not send the file attachment");
-					//remove(modsentFile);
-				}
 			}
 			if (body)
 				free(body);			
@@ -225,6 +203,7 @@ void TcpThread::run() //cs: Server socket
 	}	
 }
 
+//authenticates client based on their purpose of connection
 int TcpThread::authenticateClient(Email *rmsg)
 {
 	signp = (Sign *)rmsg->buffer;

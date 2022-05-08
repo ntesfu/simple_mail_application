@@ -1,5 +1,6 @@
 #include "client.h"
 
+//returns the index of char c in the string str (-1 if not found)
 int IndexOf(std::string str, char c)
 {
 	int i = 0;
@@ -11,6 +12,7 @@ int IndexOf(std::string str, char c)
 	return (-1);
 }
 
+//gets the substring in char * of String s from start index to length len
 char	*ft_substr(std::string s, int start, int len)
 {
 	char	*res;
@@ -26,22 +28,8 @@ char	*ft_substr(std::string s, int start, int len)
 	return (res);
 }
 
-void TcpClient::printStructure(Email msg)
-{
-	cout <<smsg.length<<endl;
-	cout <<smsg.type<<endl;
-	cout <<smsg.buffer<<endl;
-	cout <<headerp->from<<endl;
-	cout <<headerp->to<<endl;
-	cout <<headerp->subject<<endl;
-	cout <<headerp->tstamp<<endl;
-	cout <<Esendp->body_length<<endl;
-	cout <<Esendp->file_size<<endl;
-	cout <<Esendp->filename_size<<endl;
-	cout <<Esendp->num_receivers<<endl;
-	cout <<Esendp->hostname<<endl;
-}
-
+/*function that fills the buffer inputbody with a variable length of message
+that is read from the terminal*/
 int	TcpClient::getBodyFromTerminal(char **inputbody)
 {
 	//read the body of the email and put it in variable length buffer
@@ -70,6 +58,7 @@ int	TcpClient::getBodyFromTerminal(char **inputbody)
 	return body_len;
 }
 
+/*function to fill the smsg email pointer from scratch(prompting the user from the terminal)*/
 int	TcpClient::fillEmailPointerTerminal(stack<char *> *multiReceivers, char **inputbody, FILE *fa, char **modFileName, char *inputfrom)
 {
 	int		body_len;
@@ -86,13 +75,12 @@ int	TcpClient::fillEmailPointerTerminal(stack<char *> *multiReceivers, char **in
 	cout << "To: ";
 	cin.getline(seg, 10 * TO_LENGTH);
 	cout << endl;
-	//**********************************	
+	//put the receipents in a stack
 	stringstream receivers(seg);
 	string	to;
 	while (getline(receivers, to, ' '))
 		(*multiReceivers).push(strdup(to.c_str()));
 	sprintf(inputto, "%s", (*multiReceivers).top());	
-	//*************************************
 	cout << "Subject: ";
 	cin.getline(inputsubj, SUBJ_LENGTH);
 	cout << endl;
@@ -130,9 +118,12 @@ int	TcpClient::fillEmailPointerTerminal(stack<char *> *multiReceivers, char **in
 		while ((n = fread(&c, 1, 1, fa)) > 0){
 			fsize++;
 		}
-		printf("file size read as binary is:%ld\n", fsize);
+		printf("Read file as binary with size of: %ld\n", fsize);
 		Esendp->file_size = fsize;
-		rewind(fa);
+		fclose(fa);
+		if ((fa = fopen((const char *)filepath, "rb")) == NULL)
+			err_sys("could not open file specified\n");
+		//rewind(fa);
 		int x;
 		if ((x = copyFileToDirectory(fa, &smsg, modFileName, filepath)) != 0)
 			err_sys("Error, coudn't copying file to working directory\n");
@@ -142,6 +133,7 @@ int	TcpClient::fillEmailPointerTerminal(stack<char *> *multiReceivers, char **in
 	return body_len;
 }
 
+/*function to fill the smsg email pointer form a file when forwarding an email*/
 int	TcpClient::fillEmailPointerFromFile(stack<char *> *multiReceivers, char **inputbody, FILE *fa, char **modFileName, char *inputfrom)
 {
 	int			body_len;

@@ -2,6 +2,7 @@
 
 using namespace std;
 
+/*function that prompts user when siging in*/
 void TcpClient::modeSignin(char **inputfrom)
 {
 	int		cmd;
@@ -59,8 +60,7 @@ void TcpClient::run(int argc, char* argv[])
 	if (gethostname(Esendp->hostname, HOSTNAME_LENGTH) != 0) //get the hostname
 		err_sys("can not get the host name,program exit");
 	cout << "Mail Client starting on host: "<<Esendp->hostname<<endl;
-	cout << endl;
-	
+	cout << endl;	
 	
 	// options when you sign in
 	cout << "To send a new email, press 1; To forward an email, press 2: ";
@@ -70,12 +70,9 @@ void TcpClient::run(int argc, char* argv[])
 	if (cmd == 1)
 		body_len = fillEmailPointerTerminal(&multiReceivers, &inputbody, fa, &modFileName, inputfrom);
 	else if (cmd == 2)
-	{
-		body_len =  fillEmailPointerFromFile(&multiReceivers, &inputbody, fa, &modFileName, inputfrom);			
-	}
+		body_len =  fillEmailPointerFromFile(&multiReceivers, &inputbody, fa, &modFileName, inputfrom);
 	if (body_len == -1)
-		err_sys("Error, building email structure unsuccessful");
-	
+		err_sys("Error, building email structure unsuccessful");	
 	
 	Esendp->num_receivers = multiReceivers.size();
 	while (!multiReceivers.empty())
@@ -117,7 +114,6 @@ void TcpClient::run(int argc, char* argv[])
 	if (modFileName) free(modFileName);
 	fclose(fa);
 	closesocket(sock);		//close the client socket
-	//shahad@shahom.ae abdulla@shahom.ae yakob@shahom.ae
 }
 
 /*autenticates user and returns 0 if user is not found */
@@ -136,8 +132,6 @@ int TcpClient::authenticateClient(Type tp, char *from)
 	cout <<"Enter password: ";
 	cin.getline(inputpass, PASS_LENGTH);
 	cout <<endl;
-	//if (IndexOf(inputclientname, '@') == -1 || IndexOf(inputclientname, '.') == -1)
-	//	err_sys("Wrong client email address, error exit");
 	if (tp == SGN_UP)
 	{
 		char *inputconfirm = new char[PASS_LENGTH];
